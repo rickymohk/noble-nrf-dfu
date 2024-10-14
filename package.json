@@ -9,7 +9,7 @@
   "author": "Iván Sánchez Ortega <ivan@sanchezortega.es>",
   "license": "Propietary",
   "scripts": {
-    "install": "npm run rollup",
+    "prepare": "npm run rollup",
     "rollup": "rollup -c rollup.config.js",
     "test": "rollup -c rollup.config.js && jest --detectOpenHandles --runInBand",
     "lint": "eslint src/"
