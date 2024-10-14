@@ -5,6 +5,7 @@
   "esnext:main": "src/index.js",
   "main": "dist/noble-nrf-dfu.cjs.js",
   "module": "dist/noble-nrf-dfu.cjs.js",
+  "types": "noble-nrf-dfu.d.ts",
   "type": "module",
   "author": "Iván Sánchez Ortega <ivan@sanchezortega.es>",
   "license": "Propietary",
