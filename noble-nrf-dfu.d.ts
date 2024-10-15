@@ -26,7 +26,7 @@ declare module 'noble-nrf-dfu' {
     sendInitPacket(packet: Uint8Array): Promise<void>;
     sendFirmwareImage(image: Uint8Array): Promise<void>;
     restart(): Promise<void>;
-    on(event:"progress",listener:({sent:number,total:number}) => void) : this;
+    on(event:"progress",listener:(progress:{sent:number,total:number}) => void) : this;
   }
 
   export abstract class DfuAbstractTransport implements DfuTransport {
@@ -36,10 +36,13 @@ declare module 'noble-nrf-dfu' {
     sendInitPacket(packet: Uint8Array): Promise<void>;
     sendFirmwareImage(image: Uint8Array): Promise<void>;
     restart(): Promise<void>;
-    on(event:"progress",listener:({sent:number,total:number}) => void) : this;
+    on(event:"progress",listener:(progress:{sent:number,total:number}) => void) : this;
   }
 
   export class DfuTransportNoble extends DfuAbstractTransport {
+    protected override createObject(type: number, size: number): Promise<void>;
+    protected override writeObject(bytes: Uint8Array, crc?: number, offset?: number): Promise<[number, number]>;
+    protected override crcObject(offset: number, crc: number): Promise<[number, number]>;
     constructor(peripheral: Peripheral, packetReceiveNotification?: number);
     
     peripheral: Peripheral;
@@ -51,6 +54,7 @@ declare module 'noble-nrf-dfu' {
     writeData(bytes: Uint8Array): Promise<void>;
     getCharacteristics(): Promise<void>;
     ready(): Promise<void>;
+    
   }
 
   export class DfuError extends Error {
