@@ -26,6 +26,7 @@ declare module 'noble-nrf-dfu' {
     sendInitPacket(packet: Uint8Array): Promise<void>;
     sendFirmwareImage(image: Uint8Array): Promise<void>;
     restart(): Promise<void>;
+    on(event:"progress",listener:({sent:number,total:number}) => void) : this;
   }
 
   export abstract class DfuAbstractTransport implements DfuTransport {
@@ -35,6 +36,7 @@ declare module 'noble-nrf-dfu' {
     sendInitPacket(packet: Uint8Array): Promise<void>;
     sendFirmwareImage(image: Uint8Array): Promise<void>;
     restart(): Promise<void>;
+    on(event:"progress",listener:({sent:number,total:number}) => void) : this;
   }
 
   export class DfuTransportNoble extends DfuAbstractTransport {
