@@ -1,11 +1,12 @@
-import resolve from '@rollup/plugin-node-resolve';
-import commonjs from '@rollup/plugin-commonjs';
-import json from '@rollup/plugin-json';
-import { readFileSync } from 'fs';
+const resolve = require('@rollup/plugin-node-resolve');
+const commonjs = require('@rollup/plugin-commonjs');
+const json = require('@rollup/plugin-json');
+const readFileSync = require('fs').readFileSync;
+const path = require('path');
 
-const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname,'./package.json') , 'utf8'));
 
-export default {
+module.exports = {
     input: 'src/index.js',
     external: ['buffer', 'fs', 'debug'],
     output: {
