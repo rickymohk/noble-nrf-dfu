@@ -165,7 +165,7 @@ export default class DfuTransportNoble extends DfuTransportPrn {
             new Promise((res, rej) => {
                 setTimeout(
                     () => rej(new DfuError(ErrorCode.ERROR_TIMEOUT_FETCHING_CHARACTERISTICS)),
-                    500
+                    5000
                 );
             }),
         ])
