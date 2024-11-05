@@ -44,6 +44,28 @@ import { DfuError, ErrorCode } from './DfuError';
 
 const debug = Debug('dfu:noble');
 
+let _noble;
+async function getNoble()
+{
+	const noble = _noble ?? (await import("@abandonware/noble")).default;//require('@abandonware/noble')();
+    _noble = noble;
+	if (noble._state != "poweredOn"){
+        await new Promise((resolve,reject)=>{
+            const t = setTimeout(()=>{
+                reject(new Error("Bluetooth not poweredOn after 10s"));
+            },10000);
+            noble?.on("stateChange", (state) => {
+                log.info("noble stateChage", state);
+                if(state == "poweredOn")
+                {
+                    clearTimeout(t);
+                    resolve();
+                }
+            });
+        });
+	}
+	return noble;
+}
 /**
  * noble DFU transport.
  *
@@ -55,6 +77,7 @@ const debug = Debug('dfu:noble');
  */
 
 export default class DfuTransportNoble extends DfuTransportPrn {
+
     constructor(peripheral, packetReceiveNotification = 16) {
         super(packetReceiveNotification);
 
@@ -109,48 +132,73 @@ export default class DfuTransportNoble extends DfuTransportPrn {
         });
     }
 
-    // Aux. Connects to this.peripheral, discovers services and characteristics,
-    // and stores a reference into this.dfuControlCharacteristic and this.dfuPacketCharacteristic
-    getCharacteristics() {
+    connect()
+    {
+        if(this.peripheral.state == 'connected')
+        {
+            return;
+        }
         return new Promise((res, rej) => {
             this.peripheral.connect(err => {
-                if (err) {
-                    return rej(err);
+                if(err)
+                {
+                    rej(err);
                 }
-
-                debug('Instantiating noble transport to: ', this.peripheral);
-
-                this.peripheral.discoverServices(['fe59'], (err1, [dfuService]) => {
-                    if (err1) {
-                        return rej(err1);
-                    }
-                    debug('discovered dfuService');
-
-                    dfuService.discoverCharacteristics(null, (err2, characteristics) => {
-                        if (err2) {
-                            return rej(err2);
-                        }
-                        debug('discovered the following characteristics:');
-                        for (let i = 0, l = characteristics.length; i < l; i += 1) {
-                            debug(`  ${i} uuid: ${characteristics[i].uuid}`);
-
-                            if (characteristics[i].uuid === '8ec90001f3154f609fb8838830daea50') {
-                                this.dfuControlCharacteristic = characteristics[i];
-                            }
-                            if (characteristics[i].uuid === '8ec90002f3154f609fb8838830daea50') {
-                                this.dfuPacketCharacteristic = characteristics[i];
-                            }
-                        }
-                        if (this.dfuControlCharacteristic && this.dfuPacketCharacteristic) {
-                            return res();
-                        }
-                        return rej(new DfuError(ErrorCode.ERROR_CAN_NOT_DISCOVER_DFU_CONTROL));
+                else
+                {
+                    this.peripheral.once('disconnect', () => {
+                        this.readyPromise = undefined;
+                        this.dfuControlCharacteristic = undefined;
+                        this.dfuPacketCharacteristic = undefined;
                     });
-                    return undefined;
-                });
-                return undefined;
-            });
+                    res();
+                }
+            } );
+        });    
+    }
+
+    discoverServices(uuids)
+    {
+        return new Promise((res, rej) => {
+            this.peripheral.discoverServices(uuids, (err, services) => err ? rej(err) : res(services) );
         });
+    }
+
+    discoverCharacteristics(service,characUuids){
+        return new Promise((res, rej) => {
+            service.discoverCharacteristics(characUuids, (err, characteristics) => err ? rej(err) : res(characteristics));
+        });
+    }
+
+    // Aux. Connects to this.peripheral, discovers services and characteristics,
+    // and stores a reference into this.dfuControlCharacteristic and this.dfuPacketCharacteristic
+    async getCharacteristics() {
+        await this.connect();
+        debug('Instantiating noble transport to: ', this.peripheral);
+        const services = await this.discoverServices(['fe59']);
+        debug('discovered dfuService');
+        const service = services[0];
+        const characteristics = await this.discoverCharacteristics(service, null);
+        debug('discovered the following characteristics:');
+        for(let i = 0, l = characteristics.length; i < l; i += 1) {
+            debug(`  ${i} uuid: ${characteristics[i].uuid}`);
+            if (characteristics[i].uuid === '8ec90001f3154f609fb8838830daea50') {
+                this.dfuControlCharacteristic = characteristics[i];
+            }
+            if (characteristics[i].uuid === '8ec90002f3154f609fb8838830daea50') {
+                this.dfuPacketCharacteristic = characteristics[i];
+            }
+            if (characteristics[i].uuid === '8ec90003f3154f609fb8838830daea50') {   //without bonds
+                this.buttonlessDfuCharacteristic = characteristics[i];
+            }
+            if (characteristics[i].uuid === '8ec90004f3154f609fb8838830daea50') {   //with bonds
+                this.buttonlessDfuCharacteristic = characteristics[i];
+            }
+        }
+        if (!(this.dfuControlCharacteristic && this.dfuPacketCharacteristic))
+        {
+            throw new DfuError(ErrorCode.ERROR_CAN_NOT_DISCOVER_DFU_CONTROL);
+        }
     }
 
     // Opens the port, sets the PRN, requests the MTU.
@@ -198,5 +246,49 @@ export default class DfuTransportNoble extends DfuTransportPrn {
             ));
 
         return this.readyPromise;
+    }
+
+    /**
+     * Buttonless flow
+     * 1. find buttonless dfu service
+     * 2. ensure is in application mode, else proceed directly
+     * 3. jump to bootloader
+     *  3.1. send new name
+     *  3.2. send buttonless dfu request (will disconnect)
+     * 4. scan for new peripheral with MAC address + 1 or new name (iOS)
+     * 5. replace peripheral with new one
+     * 6. proceed with dfu
+     * @returns {Promise} a Promise that resolves when buttonless flow is done
+     */
+    async startButtonless()
+    {
+        debug('Starting buttonless flow');
+        await this.getCharacteristics();
+        debug('discovered dfuService');
+        //determine it is in application mode
+        if(!this.buttonlessDfuCharacteristic)
+        {
+            //no buttonless dfu characteristic. It might be in bootloader already, or not support buttonless dfu. Try proceed
+            return;
+        }
+        //jump to bootloader
+        debug('Jumping to bootloader');
+        //send new name
+        const name = `Dfu${Math.floor(Math.random() * 0x100000).toString(16).padStart(5,'0')}`;
+        const nameBuf = Buffer.from(name);
+        const data = Buffer.concat([Buffer.from([0x02,nameBuf.length]),nameBuf]);
+        await new Promise((res, rej) => this.buttonlessDfuCharacteristic.write(data, true, err => err ? rej(err) : res()));
+        debug('Sent new name. Enter bootloader');
+        //send buttonless dfu request
+        const disconnectPromise = new Promise((res, rej) => {
+            setTimeout(() => rej(new DfuError(ErrorCode.ERROR_TIMEOUT_JUMPING_TO_BOOTLOADER)), 5000);
+            this.peripheral.once('disconnect', res)
+        });
+        await new Promise((res, rej) => this.buttonlessDfuCharacteristic.write(Buffer.from([0x01]), true, err => err ? rej(err) : res()));
+        //device is probably disconnected at this point
+        debug('Sent buttonless dfu request. Waiting for disconnect');
+        await disconnectPromise;
+        //scan for new peripheral
+        const noble = await getNoble();
     }
 }
