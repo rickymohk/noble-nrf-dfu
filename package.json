@@ -18,7 +18,8 @@
     "rollup": "rollup -c"
   },
   "dependencies": {
-    "@abandonware/noble": "^1.9.2-25"
+    "@abandonware/noble": "^1.9.2-25",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "debug": "^4.3.7",
@@ -30,7 +31,6 @@
     "jest": "^29.7.0",
     "jest-bamboo-formatter": "^1.0.0",
     "jest-serializer-path": "^0.1.15",
-    "jszip": "^3.10.1",
     "rollup": "^4.24.4"
   },
   "jest": {
