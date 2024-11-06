@@ -38,25 +38,25 @@
  *
  */
 
-import fs from 'fs';
-import Debug from 'debug';
-import JSZip from 'jszip/dist/jszip.js';
+import fs from "fs";
+import Debug from "debug";
+import JSZip from "jszip/dist/jszip.js";
 
-const debug = Debug('dfu:updates');
+const debug = Debug("dfu:updates");
 
 // Object.entries polyfill, as per
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries
 if (!Object.entries) {
-    Object.entries = obj => {
-        const ownProps = Object.keys(obj);
-        let i = ownProps.length;
-        const resArray = new Array(i); // preallocate the Array
-        while (i) {
-            i -= 1;
-            resArray[i] = [ownProps[i], obj[ownProps[i]]];
-        }
-        return resArray;
-    };
+	Object.entries = (obj) => {
+		const ownProps = Object.keys(obj);
+		let i = ownProps.length;
+		const resArray = new Array(i); // preallocate the Array
+		while (i) {
+			i -= 1;
+			resArray[i] = [ownProps[i], obj[ownProps[i]]];
+		}
+		return resArray;
+	};
 }
 
 /**
@@ -88,71 +88,76 @@ if (!Object.entries) {
  *
  */
 export default class DfuUpdates {
-    constructor(updates) {
-        this.updates = updates || [];
-        // FIXME: Perform extra sanity checks, check types of the "updates" array.
-    }
+	constructor(updates) {
+		this.updates = updates || [];
+		// FIXME: Perform extra sanity checks, check types of the "updates" array.
+	}
 
-    /**
-     * Instantiates a set of DfuUpdates given the *path* of a .zip file.
-     * That .zip file is expected to have been created by nrfutil, having
-     * a valid manifest.
-     *
-     * This requires your environment to have access to the local filesystem.
-     * (i.e. works in nodejs, not in a web browser)
-     *
-     * @param {String} path The full file path to the .zip file
-     * @return {Promise} A Promise to an instance of DfuUpdates
-     */
-    static fromZipFilePath(path) {
-        return new Promise((res, rej) => {
-            fs.readFile(path, (err, data) => {
-                if (err) { return rej(err); }
-                return res(this.fromZipFile(data));
-            });
-        });
-    }
+	/**
+	 * Instantiates a set of DfuUpdates given the *path* of a .zip file.
+	 * That .zip file is expected to have been created by nrfutil, having
+	 * a valid manifest.
+	 *
+	 * This requires your environment to have access to the local filesystem.
+	 * (i.e. works in nodejs, not in a web browser)
+	 *
+	 * @param {String} path The full file path to the .zip file
+	 * @return {Promise} A Promise to an instance of DfuUpdates
+	 */
+	static fromZipFilePath(path) {
+		return new Promise((res, rej) => {
+			fs.readFile(path, (err, data) => {
+				if (err) {
+					return rej(err);
+				}
+				return res(this.fromZipFile(data));
+			});
+		});
+	}
 
-    /**
-     * Instantiates a set of DfuUpdates given the *contents* of a .zip file,
-     * as an ArrayBuffer, a Uint8Array, Buffer, Blob, or other data type accepted by
-     * [JSZip](https://stuk.github.io/jszip/documentation/api_jszip/load_async.html).
-     * That .zip file is expected to have been created by nrfutil, having
-     * a valid manifest.
-     *
-     * @param {String} zipBytes The full file path to the .zip file
-     * @return {Promise} A Promise to an instance of DfuUpdates
-     */
-    static fromZipFile(zipBytes) {
-        return (new JSZip()).loadAsync(zipBytes)
-            .then(zippedFiles => (
-                zippedFiles.file('manifest.json').async('text').then(manifestString => {
-                    debug('Unzipped manifest: ', manifestString);
+	/**
+	 * Instantiates a set of DfuUpdates given the *contents* of a .zip file,
+	 * as an ArrayBuffer, a Uint8Array, Buffer, Blob, or other data type accepted by
+	 * [JSZip](https://stuk.github.io/jszip/documentation/api_jszip/load_async.html).
+	 * That .zip file is expected to have been created by nrfutil, having
+	 * a valid manifest.
+	 *
+	 * @param {String} zipBytes The full file path to the .zip file
+	 * @return {Promise} A Promise to an instance of DfuUpdates
+	 */
+	static fromZipFile(zipBytes) {
+		return new JSZip().loadAsync(zipBytes).then((zippedFiles) =>
+			zippedFiles
+				.file("manifest.json")
+				.async("text")
+				.then((manifestString) => {
+					debug("Unzipped manifest: ", manifestString);
 
-                    return JSON.parse(manifestString).manifest;
-                }).then(manifestJson => {
-                // The manifest should have up to 2 properties along
-                // "softdevice", "bootloader", "softdevice_bootloader",
-                // or "application". At least that's what the standard
-                // Nordic DFU does, but nothing stops other implementations
-                // and more types of payload. So we don't check for this.
+					return JSON.parse(manifestString).manifest;
+				})
+				.then((manifestJson) => {
+					// The manifest should have up to 2 properties along
+					// "softdevice", "bootloader", "softdevice_bootloader",
+					// or "application". At least that's what the standard
+					// Nordic DFU does, but nothing stops other implementations
+					// and more types of payload. So we don't check for this.
 
-                    debug('Parsed manifest:', manifestJson);
+					debug("Parsed manifest:", manifestJson);
 
-                    const updates = Object.entries(manifestJson).map(([, updateJson]) => {
-                        const initPacketPromise = zippedFiles.file(updateJson.dat_file).async('uint8array');
-                        const firmwareImagePromise = zippedFiles.file(updateJson.bin_file).async('uint8array');
+					const updates = Object.entries(manifestJson).map(([, updateJson]) => {
+						const initPacketPromise = zippedFiles.file(updateJson.dat_file).async("uint8array");
+						const firmwareImagePromise = zippedFiles.file(updateJson.bin_file).async("uint8array");
 
-                        return Promise.all([initPacketPromise, firmwareImagePromise])
-                            .then(([initPacketBytes, firmwareImageBytes]) => ({
-                                initPacket: initPacketBytes,
-                                firmwareImage: firmwareImageBytes,
-                            }));
-                    });
+						return Promise.all([initPacketPromise, firmwareImagePromise]).then(
+							([initPacketBytes, firmwareImageBytes]) => ({
+								initPacket: initPacketBytes,
+								firmwareImage: firmwareImageBytes,
+							})
+						);
+					});
 
-                    return Promise.all(updates)
-                        .then(resolvedUpdates => new DfuUpdates(resolvedUpdates));
-                })
-            ));
-    }
+					return Promise.all(updates).then((resolvedUpdates) => new DfuUpdates(resolvedUpdates));
+				})
+		);
+	}
 }

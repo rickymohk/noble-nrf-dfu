@@ -56,62 +56,60 @@
  */
 
 export default class DfuOperation {
-    constructor(dfuUpdates, dfuTransport, autoStart = false) {
-        this.updates = dfuUpdates.updates;
-        this.transport = dfuTransport;
+	constructor(dfuUpdates, dfuTransport, autoStart = false) {
+		this.updates = dfuUpdates.updates;
+		this.transport = dfuTransport;
 
-        if (autoStart) {
-            this.start();
-        }
-    }
+		if (autoStart) {
+			this.start();
+		}
+	}
 
-    /**
-     * Starts the DFU operation. Returns a Promise that resolves as soon as
-     * the DFU has been performed (as in "everything has been sent to the
-     * transport, and the CRCs back seem correct").
-     *
-     * If called with a truthy value for the 'forceful' parameter, then
-     * the DFU procedure will skip the steps that detect whether a previous
-     * DFU procedure has been interrupted and can be continued. In other
-     * words, the DFU procedure will be started from the beginning, regardless.
-     *
-     * Calling start() more than once has no effect, and will only return a
-     * reference to the first Promise that was returned.
-     *
-     * @param {Bool} forceful if should skip the steps
-     * @return {Promise} a Promise that resolves as soon as the DFU has been performed
-     */
-    start(forceful = false) {
-        if (this.finishPromise) {
-            return this.finishPromise;
-        }
-        this.finishPromise = this.performNextUpdate(0, forceful);
-        return this.finishPromise;
-    }
+	/**
+	 * Starts the DFU operation. Returns a Promise that resolves as soon as
+	 * the DFU has been performed (as in "everything has been sent to the
+	 * transport, and the CRCs back seem correct").
+	 *
+	 * If called with a truthy value for the 'forceful' parameter, then
+	 * the DFU procedure will skip the steps that detect whether a previous
+	 * DFU procedure has been interrupted and can be continued. In other
+	 * words, the DFU procedure will be started from the beginning, regardless.
+	 *
+	 * Calling start() more than once has no effect, and will only return a
+	 * reference to the first Promise that was returned.
+	 *
+	 * @param {Bool} forceful if should skip the steps
+	 * @return {Promise} a Promise that resolves as soon as the DFU has been performed
+	 */
+	start(forceful = false) {
+		if (this.finishPromise) {
+			return this.finishPromise;
+		}
+		this.finishPromise = this.performNextUpdate(0, forceful);
+		return this.finishPromise;
+	}
 
-    // Takes in an update from this._update, performs it. Returns a Promise
-    // which resolves when all updates are done.
-    // - Tell the transport to send the init packet
-    // - Tell the transport to send the binary blob
-    // - Proceed to the next update
-    performNextUpdate(updateNumber, forceful) {
-        if (this.updates.length <= updateNumber) {
-            return Promise.resolve();
-        }
+	// Takes in an update from this._update, performs it. Returns a Promise
+	// which resolves when all updates are done.
+	// - Tell the transport to send the init packet
+	// - Tell the transport to send the binary blob
+	// - Proceed to the next update
+	performNextUpdate(updateNumber, forceful) {
+		if (this.updates.length <= updateNumber) {
+			return Promise.resolve();
+		}
 
-        let start;
-        if (forceful) {
-            start = this.transport.restart();
-        } else {
-            start = Promise.resolve();
-        }
+		let start;
+		if (forceful) {
+			start = this.transport.restart();
+		} else {
+			start = Promise.resolve();
+		}
 
-        return start
-            .then(() => this.transport.startButtonless())
-            .then(() => this.transport.sendInitPacket(this.updates[updateNumber].initPacket))
-            .then(() => this.transport.sendFirmwareImage(this.updates[updateNumber].firmwareImage))
-            .then(() => this.performNextUpdate(updateNumber + 1, forceful));
-    }
-
-
+		return start
+			.then(() => this.transport.startButtonless())
+			.then(() => this.transport.sendInitPacket(this.updates[updateNumber].initPacket))
+			.then(() => this.transport.sendFirmwareImage(this.updates[updateNumber].firmwareImage))
+			.then(() => this.performNextUpdate(updateNumber + 1, forceful));
+	}
 }

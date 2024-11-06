@@ -1,28 +1,14 @@
 {
     "extends": [
-        "eslint:recommended"
+        "eslint:recommended",
+        "prettier"
     ],
     "parserOptions": { 
         "ecmaVersion": 2020,
         "sourceType": "module"
     }, 
     "rules": {
-        "indent": [
-            "error",
-            4,
-            {
-                "SwitchCase": 1
-            }
-        ],
-        "quotes": [
-            "error",
-            "single"
-        ],
         "linebreak-style": "off",
-        "arrow-parens": [
-            "error",
-            "as-needed"
-        ],
         "arrow-body-style": [
             "error",
             "as-needed"

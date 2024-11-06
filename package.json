@@ -3,14 +3,19 @@
   "version": "0.2.12",
   "description": "JS implementation of the nRF DFU protocol",
   "esnext:main": "src/index.js",
-  "main": "src/index.js",
-  "module": "src/index.js",
+  "main": "cjs/index.js",
+  "module": "esm/index.js",
+  "exports": {
+    "require": "./cjs/index.js",
+    "import": "./esm/index.js"
+  },
   "types": "noble-nrf-dfu.d.ts",
   "type": "module",
   "author": "Iván Sánchez Ortega <ivan@sanchezortega.es>",
   "license": "Propietary",
   "scripts": {
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "rollup": "rollup -c"
   },
   "dependencies": {
     "@abandonware/noble": "^1.9.2-25"
@@ -19,12 +24,14 @@
     "debug": "^4.3.7",
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-react": "^7.37.1",
     "jest": "^29.7.0",
     "jest-bamboo-formatter": "^1.0.0",
     "jest-serializer-path": "^0.1.15",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "rollup": "^4.24.4"
   },
   "jest": {
     "testMatch": [
