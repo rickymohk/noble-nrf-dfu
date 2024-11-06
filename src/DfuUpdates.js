@@ -40,7 +40,7 @@
 
 import fs from 'fs';
 import Debug from 'debug';
-import JSZip from 'jszip/dist/jszip';
+import JSZip from 'jszip/dist/jszip.js';
 
 const debug = Debug('dfu:updates');
 

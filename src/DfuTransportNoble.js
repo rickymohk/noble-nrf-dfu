@@ -39,32 +39,32 @@
  */
 
 import Debug from 'debug';
-import DfuTransportPrn from './DfuTransportPrn';
-import { DfuError, ErrorCode } from './DfuError';
+import DfuTransportPrn from './DfuTransportPrn.js';
+import { DfuError, ErrorCode } from './DfuError.js';
 
 const debug = Debug('dfu:noble');
 
 let _noble;
 async function getNoble()
 {
-	const noble = _noble ?? (await import("@abandonware/noble")).default;//require('@abandonware/noble')();
+    const noble = _noble ?? (await import('@abandonware/noble')).default;//require('@abandonware/noble')();
     _noble = noble;
-	if (noble._state != "poweredOn"){
+    if (noble._state != 'poweredOn'){
         await new Promise((resolve,reject)=>{
             const t = setTimeout(()=>{
-                reject(new Error("Bluetooth not poweredOn after 10s"));
+                reject(new Error('Bluetooth not poweredOn after 10s'));
             },10000);
-            noble?.on("stateChange", (state) => {
-                log.info("noble stateChage", state);
-                if(state == "poweredOn")
+            noble?.on('stateChange', state => {
+                debug('noble stateChage', state);
+                if(state == 'poweredOn')
                 {
                     clearTimeout(t);
                     resolve();
                 }
             });
         });
-	}
-	return noble;
+    }
+    return noble;
 }
 /**
  * noble DFU transport.
@@ -147,6 +147,7 @@ export default class DfuTransportNoble extends DfuTransportPrn {
                 else
                 {
                     this.peripheral.once('disconnect', () => {
+                        debug('Disconnected from peripheral: ', this.peripheral.id, this.peripheral.advertisement.localName);
                         this.readyPromise = undefined;
                         this.dfuControlCharacteristic = undefined;
                         this.dfuPacketCharacteristic = undefined;
@@ -174,7 +175,7 @@ export default class DfuTransportNoble extends DfuTransportPrn {
     // and stores a reference into this.dfuControlCharacteristic and this.dfuPacketCharacteristic
     async getCharacteristics() {
         await this.connect();
-        debug('Instantiating noble transport to: ', this.peripheral);
+        debug('Instantiating noble transport to: ', this.peripheral.id, this.peripheral.advertisement.localName);
         const services = await this.discoverServices(['fe59']);
         debug('discovered dfuService');
         const service = services[0];
@@ -195,10 +196,7 @@ export default class DfuTransportNoble extends DfuTransportPrn {
                 this.buttonlessDfuCharacteristic = characteristics[i];
             }
         }
-        if (!(this.dfuControlCharacteristic && this.dfuPacketCharacteristic))
-        {
-            throw new DfuError(ErrorCode.ERROR_CAN_NOT_DISCOVER_DFU_CONTROL);
-        }
+        
     }
 
     // Opens the port, sets the PRN, requests the MTU.
@@ -218,6 +216,10 @@ export default class DfuTransportNoble extends DfuTransportPrn {
             }),
         ])
             .then(() => {
+                if (!(this.dfuControlCharacteristic && this.dfuPacketCharacteristic))
+                {
+                    return Promise.reject(new DfuError(ErrorCode.ERROR_CAN_NOT_DISCOVER_DFU_CONTROL));
+                }
                 // Subscribe to notifications on the control characteristic
                 debug('control characteristic:', this.dfuControlCharacteristic.uuid, this.dfuControlCharacteristic.properties);
 
@@ -255,7 +257,7 @@ export default class DfuTransportNoble extends DfuTransportPrn {
      * 3. jump to bootloader
      *  3.1. send new name
      *  3.2. send buttonless dfu request (will disconnect)
-     * 4. scan for new peripheral with MAC address + 1 or new name (iOS)
+     * 4. scan for new peripheral with MAC address + 1 or new name (macOS)
      * 5. replace peripheral with new one
      * 6. proceed with dfu
      * @returns {Promise} a Promise that resolves when buttonless flow is done
@@ -266,29 +268,78 @@ export default class DfuTransportNoble extends DfuTransportPrn {
         await this.getCharacteristics();
         debug('discovered dfuService');
         //determine it is in application mode
-        if(!this.buttonlessDfuCharacteristic)
+        const buttonlessDfuCharacteristic = this.buttonlessDfuCharacteristic
+        if(!buttonlessDfuCharacteristic)
         {
             //no buttonless dfu characteristic. It might be in bootloader already, or not support buttonless dfu. Try proceed
             return;
         }
         //jump to bootloader
         debug('Jumping to bootloader');
+        //enable dfu characterictics notification
+        let dfuResponse;
+        buttonlessDfuCharacteristic.subscribe();
+        buttonlessDfuCharacteristic.on('data', data => {
+            debug(' recv <-- ', data);
+            const [opCode,reqCode,status] = data;
+            dfuResponse({opCode,reqCode,status});
+        });
+        function dfuRequest(data){
+            debug('Send buttonless dfu request %o', data);
+            return new Promise((res, rej) => {
+                setTimeout(() => rej(new DfuError(ErrorCode.ERROR_RSP_OPERATION_FAILED)), 5000);
+                dfuResponse = res;
+                buttonlessDfuCharacteristic.write(Buffer.from(data), false, err => err ? rej(err) : undefined);
+            });
+        }
         //send new name
         const name = `Dfu${Math.floor(Math.random() * 0x100000).toString(16).padStart(5,'0')}`;
         const nameBuf = Buffer.from(name);
         const data = Buffer.concat([Buffer.from([0x02,nameBuf.length]),nameBuf]);
-        await new Promise((res, rej) => this.buttonlessDfuCharacteristic.write(data, true, err => err ? rej(err) : res()));
+        debug('Send new name %o',data);
+        const setNameRes = await dfuRequest(data);
+        if(setNameRes.status != 1)
+        {
+            throw new DfuError(ErrorCode.ERROR_RSP_OPERATION_FAILED);
+        }
         debug('Sent new name. Enter bootloader');
         //send buttonless dfu request
         const disconnectPromise = new Promise((res, rej) => {
             setTimeout(() => rej(new DfuError(ErrorCode.ERROR_TIMEOUT_JUMPING_TO_BOOTLOADER)), 5000);
-            this.peripheral.once('disconnect', res)
+            this.peripheral.once('disconnect', res);
         });
-        await new Promise((res, rej) => this.buttonlessDfuCharacteristic.write(Buffer.from([0x01]), true, err => err ? rej(err) : res()));
-        //device is probably disconnected at this point
-        debug('Sent buttonless dfu request. Waiting for disconnect');
+        const enterBootloaderReqData = Buffer.from([0x01]);
+        debug('Send buttonless dfu request %o', enterBootloaderReqData);
+        dfuRequest(enterBootloaderReqData); //do not await since the response might not arrive as it reset
+        debug('Waiting for disconnect');
         await disconnectPromise;
+        buttonlessDfuCharacteristic.unsubscribe();
+        this.peripheral.removeAllListeners();
         //scan for new peripheral
+        debug('Scanning for new peripheral');
         const noble = await getNoble();
+        const targetAddr = process.platform == 'darwin' ? undefined : (addr2bigint(this.peripheral.address) + BigInt(1));
+        await new Promise((res, rej) => {
+            setTimeout(() => rej(new DfuError(ErrorCode.ERROR_TIMEOUT_SCANNING_NEW_PERIPHERAL)), 5000);
+            noble.on('discover',peripheral=>{
+                debug('Found new peripheral', peripheral.address, this.peripheral.address);
+                if((targetAddr && peripheral.address == targetAddr) || peripheral.advertisement.localName == name)
+                {
+                    debug('Found new peripheral with same address. Replacing peripheral');
+                    noble.stopScanning();
+                    this.peripheral = peripheral;
+                    this.readyPromise = undefined;
+                    this.dfuControlCharacteristic = undefined;
+                    this.dfuPacketCharacteristic = undefined;
+                    res();
+                }
+            });
+            noble.startScanning(undefined, true);
+        });
     }
+}
+
+function addr2bigint(addr)
+{
+    return addr.split(':').map(it => parseInt(it, 16)).reduce((a, b) =>  (a << 8n) + BigInt(b), 0n);
 }

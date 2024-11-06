@@ -38,10 +38,10 @@
  *
  */
 
-import DfuOperation from './DfuOperation';
-import DfuUpdates from './DfuUpdates';
-import DfuTransportNoble from './DfuTransportNoble';
-import { DfuError, ErrorCode } from './DfuError';
+import DfuOperation from './DfuOperation.js';
+import DfuUpdates from './DfuUpdates.js';
+import DfuTransportNoble from './DfuTransportNoble.js';
+import { DfuError, ErrorCode } from './DfuError.js';
 
 export {
     DfuOperation,
