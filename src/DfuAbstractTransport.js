@@ -38,12 +38,11 @@
  *
  */
 
-import crc32 from './util/crc32';
-import { DfuError, ErrorCode } from './DfuError';
-import {} from 'node:events';
-import { EventEmitter } from 'node:stream';
-
-const debug = require('debug')('dfu:transport');
+import crc32 from './util/crc32.js';
+import { DfuError, ErrorCode } from './DfuError.js';
+import { EventEmitter } from 'node:events';
+import Debug from 'debug';
+const debug = Debug('dfu:transport');
 
 /**
  * Implements the logic common to all transports, but not the transport itself.

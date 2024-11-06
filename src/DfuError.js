@@ -76,6 +76,8 @@ export const ErrorCode = {
     ERROR_CAN_NOT_DISCOVER_DFU_CONTROL: 0x0051,
     ERROR_TIMEOUT_FETCHING_CHARACTERISTICS: 0x0052,
     ERROR_CAN_NOT_SUBSCRIBE_CHANGES: 0x0053,
+    ERROR_TIMEOUT_JUMPING_TO_BOOTLOADER: 0x0054,
+    ERROR_TIMEOUT_SCANNING_NEW_PERIPHERAL: 0x0055,
 
     // Error code for DfuTransportSerial(including slow and usb)
     ERROR_UNKNOWN_FIRMWARE_TYPE: 0x0071,
@@ -141,6 +143,8 @@ export const ErrorMessages = {
     [ErrorCode.ERROR_CAN_NOT_DISCOVER_DFU_CONTROL]: 'Could not discover DFU control and packet characteristics',
     [ErrorCode.ERROR_TIMEOUT_FETCHING_CHARACTERISTICS]: 'Timeout while fetching characteristics from BLE peripheral',
     [ErrorCode.ERROR_CAN_NOT_SUBSCRIBE_CHANGES]: 'Could not subscribe to changes of the control characteristics',
+    [ErrorCode.ERROR_TIMEOUT_JUMPING_TO_BOOTLOADER]: 'Timeout while jumping to bootloader',
+    [ErrorCode.ERROR_TIMEOUT_SCANNING_NEW_PERIPHERAL]: 'Timeout while scanning for new peripheral',
     [ErrorCode.ERROR_UNKNOWN_FIRMWARE_TYPE]: 'Unkown firmware image type',
     [ErrorCode.ERROR_UNABLE_FIND_PORT]: 'Unable to find port.',
 };

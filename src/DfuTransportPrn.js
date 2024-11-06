@@ -39,11 +39,11 @@
  */
 
 import Debug from 'debug';
-import crc32 from './util/crc32';
+import crc32 from './util/crc32.js';
 import {
     DfuError, ErrorCode, ResponseErrorMessages, ExtendedErrorMessages,
-} from './DfuError';
-import DfuAbstractTransport from './DfuAbstractTransport';
+} from './DfuError.js';
+import DfuAbstractTransport from './DfuAbstractTransport.js';
 
 const debug = Debug('dfu:prntransport');
 
