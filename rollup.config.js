@@ -4,11 +4,11 @@ export default defineConfig({
 	input: "src/index.js",
 	output: [
 		{
-			file: "cjs/index.js",
+			file: "cjs/index.cjs",
 			format: "cjs",
 		},
         {
-			file: "esm/index.js",
+			file: "esm/index.mjs",
 			format: "es",
 		},
 	],
