@@ -3,11 +3,11 @@
   "version": "0.2.12",
   "description": "JS implementation of the nRF DFU protocol",
   "esnext:main": "src/index.js",
-  "main": "cjs/index.js",
-  "module": "esm/index.js",
+  "main": "cjs/index.cjs",
+  "module": "esm/index.mjs",
   "exports": {
-    "require": "./cjs/index.js",
-    "import": "./esm/index.js"
+    "require": "./cjs/index.cjs",
+    "import": "./esm/index.mjs"
   },
   "types": "noble-nrf-dfu.d.ts",
   "type": "module",
