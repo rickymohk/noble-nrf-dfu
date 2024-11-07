@@ -4,12 +4,19 @@
   "description": "JS implementation of the nRF DFU protocol",
   "esnext:main": "src/index.js",
   "main": "cjs/index.cjs",
-  "module": "esm/index.mjs",
+  "module": "esm/index.js",
   "exports": {
-    "require": "./cjs/index.cjs",
-    "import": "./esm/index.mjs"
+    ".":{
+      "types":{
+        "default":"./index.d.ts"
+      },
+      "default":{
+        "require":"./cjs/index.cjs",
+        "import":"./esm/index.js"
+      }
+    }
   },
-  "types": "noble-nrf-dfu.d.ts",
+  "types": "./index.d.ts",
   "type": "module",
   "author": "Iván Sánchez Ortega <ivan@sanchezortega.es>",
   "license": "Propietary",

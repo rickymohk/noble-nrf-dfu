@@ -174,7 +174,7 @@ export default class DfuTransportNoble extends DfuTransportPrn {
 		debug("Instantiating noble transport to: ", this.peripheral.id, this.peripheral.advertisement.localName);
 		const services = await this.discoverServices(["fe59"]);
 		debug("discovered dfuService");
-		const service = services[0];
+		const service = services.find(it => it.uuid == "fe59");
 		const characteristics = await this.discoverCharacteristics(service, null);
 		debug("discovered the following characteristics:");
 		for (let i = 0, l = characteristics.length; i < l; i += 1) {

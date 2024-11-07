@@ -58,7 +58,7 @@ async function main() {
     console.log(`Connecting to ${peripheral.advertisement.localName}...`);
     await new Promise<void>((resolve, reject) => peripheral.connect((error) => error ? reject(error) : resolve()));
     console.log("Connected!");
-    const dfuService = (await peripheral.discoverServicesAsync(["fe59"]))[0];
+    const dfuService = (await peripheral.discoverServicesAsync(["fe59"])).find(it => it.uuid == "fe59");
     if (!dfuService) {
         throw new Error("DFU service not found!");
     }
@@ -72,10 +72,11 @@ async function main() {
     console.log(`Performing DFU on ${peripheral.advertisement.localName} with ${zipFilePath}...`);
     const updates = await DfuUpdates.fromZipFilePath(zipFilePath);
     const nobleTransport = new DfuTransportNoble(peripheral);
-    nobleTransport.on("progress", ({sent,total}) => {
+    nobleTransport.on("progress", ({sent,total}:{sent:number,total:number}) => {
         //print progress bar on stdout
         const percent = Math.floor(sent / total * 100);
-        const bar = "[" + "#".repeat(percent) + "-".repeat(50 - percent/2) + "]";
+        const halfPercent = Math.round(percent/2)
+        const bar = "[" + "#".repeat(halfPercent) + "-".repeat(50 - halfPercent) + "]";
         process.stdout.write(`\r${bar} ${percent}%`);
     });
     const dfu = new DfuOperation(updates, nobleTransport);

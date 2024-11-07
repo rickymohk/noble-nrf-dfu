@@ -8,7 +8,7 @@ export default defineConfig({
 			format: "cjs",
 		},
         {
-			file: "esm/index.mjs",
+			file: "esm/index.js",
 			format: "es",
 		},
 	],
