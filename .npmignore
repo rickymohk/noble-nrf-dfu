@@ -1,5 +1,6 @@
+.*
 example/
-.testfirmware/
 src/
 spec/
 test/
+rollup.config.js
